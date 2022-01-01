@@ -83,6 +83,9 @@ void faad_rewindbits(bitfile *ld);
 void faad_resetbits(bitfile *ld, int bits);
 uint8_t *faad_getbitbuffer(bitfile *ld, uint32_t bits
                        DEBUGDEC);
+
+void faad_count_the_bits(int n);
+
 #ifdef DRM
 void *faad_origbitbuffer(bitfile *ld);
 uint32_t faad_origbitbuffer_size(bitfile *ld);
@@ -159,6 +162,8 @@ static INLINE void faad_flushbits(bitfile *ld, uint32_t bits)
     if (ld->error != 0)
         return;
 
+    faad_count_the_bits(bits);
+
     if (bits < ld->bits_left)
     {
         ld->bits_left -= bits;
@@ -192,6 +197,7 @@ static INLINE uint8_t faad_get1bit(bitfile *ld DEBUGDEC)
 
     if (ld->bits_left > 0)
     {
+        faad_count_the_bits(1);
         ld->bits_left--;
         r = (uint8_t)((ld->bufa >> ld->bits_left) & 1);
         return r;

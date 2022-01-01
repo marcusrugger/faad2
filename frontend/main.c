@@ -67,8 +67,8 @@
 #define min(a,b) ( (a) < (b) ? (a) : (b) )
 #endif
 
-#define MAX_CHANNELS 6 /* make this higher to support files with
-                          more channels */
+#define MAX_CHANNELS 16 /* make this higher to support files with
+                           more channels */
 
 #define MAX_PERCENTS 384
 
@@ -151,6 +151,7 @@ static int fill_buffer(aac_buffer *b)
 
 static void advance_buffer(aac_buffer *b, int bytes)
 {
+    faad_fprintf(stderr, "advance_buffer: %d\n", bytes);
     while ((b->bytes_into_buffer > 0) && (bytes > 0))
     {
         int chunk = min(bytes, b->bytes_into_buffer);
@@ -676,8 +677,11 @@ static int decodeAACfile(char *aacfile, char *sndfile, char *adts_fn, int to_std
         return 0;
     }
 
+    int frameCount = 0;
+
     do
     {
+        //faad_fprintf(stderr, "frameCount: %d\r", ++frameCount);
         sample_buffer = NeAACDecDecode(hDecoder, &frameInfo,
             b.buffer, b.bytes_into_buffer);
 
@@ -701,7 +705,11 @@ static int decodeAACfile(char *aacfile, char *sndfile, char *adts_fn, int to_std
 
         /* check if the inconsistent number of channels */
         if (aufile != NULL && frameInfo.channels != aufile->channels)
+        {
+            faad_fprintf(stderr, "frameInfo channels: %d\n", frameInfo.channels);
+            faad_fprintf(stderr, "   aufile channels: %d\n", aufile->channels);
             frameInfo.error = 12;
+        }
 
         if (frameInfo.error > 0)
         {

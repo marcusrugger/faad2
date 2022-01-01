@@ -520,6 +520,8 @@ void raw_data_block(NeAACDecStruct *hDecoder, NeAACDecFrameInfo *hInfo,
                     )) > 0)
                     return;
                 break;
+            case ID_END:
+                break;
             }
         }
 #ifdef ERROR_RESILIENCE
@@ -1808,7 +1810,9 @@ static uint8_t section_data(NeAACDecStruct *hDecoder, ic_stream *ics, bitfile *l
                     return 15;
             } else {
                 if (k + sect_len > MAX_SFB)
+                {
                     return 15;
+                }
                 if (i >= MAX_SFB)
                     return 15;
             }
@@ -2128,6 +2132,8 @@ static uint8_t spectral_data(NeAACDecStruct *hDecoder, ic_stream *ics, bitfile *
     uint8_t result;
     uint16_t nshort = hDecoder->frameLength/8;
 
+    fprintf(stderr, "\nspectral_data\n");
+
 #ifdef PROFILE
     int64_t count = faad_get_ts();
 #endif
@@ -2195,6 +2201,9 @@ static uint8_t spectral_data(NeAACDecStruct *hDecoder, ic_stream *ics, bitfile *
     count = faad_get_ts() - count;
     hDecoder->spectral_cycles += count;
 #endif
+
+    fprintf(stderr, "\nAll done for now.\n");
+    exit (0);
 
     return 0;
 }

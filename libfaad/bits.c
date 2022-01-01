@@ -34,6 +34,13 @@
 #include <stdlib.h>
 #include "bits.h"
 
+static int total_bits_read;
+void faad_count_the_bits(int n)
+{
+    total_bits_read += n;
+    fprintf(stderr, "\rtotal_bits_read = %d\r", total_bits_read);
+}
+
 /* initialize buffer, call once before first getbits or showbits */
 void faad_initbits(bitfile *ld, const void *_buffer, const uint32_t buffer_size)
 {
