@@ -151,7 +151,7 @@ static int fill_buffer(aac_buffer *b)
 
 static void advance_buffer(aac_buffer *b, int bytes)
 {
-    faad_fprintf(stderr, "advance_buffer: %d\n", bytes);
+    //faad_fprintf(stderr, "advance_buffer: %d\n", bytes);
     while ((b->bytes_into_buffer > 0) && (bytes > 0))
     {
         int chunk = min(bytes, b->bytes_into_buffer);
