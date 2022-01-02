@@ -85,6 +85,7 @@ uint8_t *faad_getbitbuffer(bitfile *ld, uint32_t bits
                        DEBUGDEC);
 
 void faad_count_the_bits(int n);
+void faad_print_total_bits_read();
 
 #ifdef DRM
 void *faad_origbitbuffer(bitfile *ld);

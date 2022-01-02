@@ -38,7 +38,11 @@ static int total_bits_read;
 void faad_count_the_bits(int n)
 {
     total_bits_read += n;
-    fprintf(stderr, "\rtotal_bits_read = %d\r", total_bits_read);
+}
+
+void faad_print_total_bits_read()
+{
+    fprintf(stderr, "Total bits read: %d\n", total_bits_read);
 }
 
 /* initialize buffer, call once before first getbits or showbits */
