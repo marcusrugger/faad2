@@ -133,7 +133,7 @@ static int rmf_decode_aac(
     cmdline_options *options,
     NeAACDecHandle hDecoder,
     buffer_infile *pinfile,
-    audio_wav_file *poutfile)
+    output_audio_file *poutfile)
 {
     NeAACDecFrameInfo frameinfo;
     int a = 0;
@@ -160,7 +160,7 @@ static int rmf_initialize_aac_decoder(
     cmdline_options *options,
     NeAACDecHandle hDecoder,
     buffer_infile *pinfile,
-    audio_wav_file *poutfile)
+    output_audio_file *poutfile)
 {
     int result = -1;
     unsigned long samplerate;
@@ -189,14 +189,14 @@ static int rmf_open_outfile(
 {
     int result = -1;
 
-    audio_wav_file *poutfile = create_audio_wav_file(logger, options->channels);
+    output_audio_file *poutfile = create_audio_wav_file(logger, options->channels);
     if (poutfile == NULL) return -1;
 
-    result = wav_file_open(poutfile, options->output_filename);
+    result = poutfile->open(poutfile, options->output_filename);
     if (SUCCESSFUL(result))
     {
         result = rmf_initialize_aac_decoder(logger, options, hDecoder, pinfile, poutfile);
-        wav_file_close(poutfile);
+        poutfile->close(poutfile);
     }
 
     release_audio_wav_file(poutfile);

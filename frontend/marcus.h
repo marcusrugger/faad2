@@ -43,16 +43,14 @@ int rescue_media_file(Logger logger, cmdline_options *options);
 
 typedef struct
 {
-    Logger logger;
-    int channels;
-    FILE *file;
+    void *data;
+    int (*open)(void *, char *);
+    void (*close)(void *);
 }
-audio_wav_file;
+output_audio_file;
 
-void wav_file_close(audio_wav_file *wavfile);
-int wav_file_open(audio_wav_file *wavfile, char *filename);
-void release_audio_wav_file(audio_wav_file *wavfile);
-audio_wav_file *create_audio_wav_file(Logger logger, int channels);
+void release_audio_wav_file(output_audio_file *wavfile);
+output_audio_file *create_audio_wav_file(Logger logger, int channels);
 
 
 #endif

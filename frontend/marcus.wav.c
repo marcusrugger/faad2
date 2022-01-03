@@ -30,16 +30,29 @@
 #include "marcus.h"
 
 
-void wav_file_close(audio_wav_file *wavfile)
+typedef struct
 {
+    Logger logger;
+    FILE *file;
+    int channels;
+}
+audio_wav_file;
+
+
+void wav_file_close(output_audio_file *audiofile)
+{
+    if (audiofile == NULL) return;
+    audio_wav_file *wavfile = (audio_wav_file *)audiofile->data;
     if (wavfile == NULL) return;
     if (wavfile->file == NULL) return;
     fclose(wavfile->file);
 }
 
 
-int wav_file_open(audio_wav_file *wavfile, char *filename)
+int wav_file_open(output_audio_file *audiofile, char *filename)
 {
+    if (audiofile == NULL) return -1;
+    audio_wav_file *wavfile = (audio_wav_file *)audiofile->data;
     if (wavfile == NULL) return -1;
 
     if (filename == NULL)
@@ -60,14 +73,21 @@ int wav_file_open(audio_wav_file *wavfile, char *filename)
 }
 
 
-void release_audio_wav_file(audio_wav_file *wavfile)
+void release_audio_wav_file(output_audio_file *audiofile)
 {
-    if (wavfile == NULL) return;
+    if (audiofile == NULL) return;
+
+    audio_wav_file *wavfile = (audio_wav_file *)audiofile->data;
+    if (wavfile != NULL)
+    {
+        free(wavfile);
+    }
+
     free(wavfile);
 }
 
 
-audio_wav_file *create_audio_wav_file(Logger logger, int channels)
+output_audio_file *create_audio_wav_file(Logger logger, int channels)
 {
     audio_wav_file *wavfile = (audio_wav_file *)malloc(sizeof(audio_wav_file));
     if (wavfile == NULL)
@@ -80,5 +100,17 @@ audio_wav_file *create_audio_wav_file(Logger logger, int channels)
     wavfile->channels = channels;
     wavfile->file = NULL;
 
-    return wavfile;
+    output_audio_file *audiofile = (output_audio_file *)malloc(sizeof(output_audio_file));
+    if (audiofile == NULL)
+    {
+        logger(LOGGER_ERROR, "Could not instantiate audio_file: %d, %s\n", errno, strerror(errno));
+        free(wavfile);
+        return NULL;
+    }
+
+    audiofile->data = wavfile;
+    audiofile->open = wav_file_open;
+    audiofile->close = wav_file_close;
+
+    return audiofile;
 }
