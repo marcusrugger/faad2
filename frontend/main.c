@@ -56,6 +56,8 @@
 #include "audio.h"
 #include "mp4read.h"
 
+#include "marcus.h"
+
 #ifdef HAVE_GETOPT_H
 # include <getopt.h>
 #else
@@ -1384,8 +1386,6 @@ static int faad_main(int argc, char *argv[])
     return 0;
 }
 
-#define MARCUS
-int mymain(int argc, char *argv[]);
 int main(int argc, char *argv[])
 {
 #if defined WIN32 || defined _WIN32 || defined WIN64 || defined _WIN64
