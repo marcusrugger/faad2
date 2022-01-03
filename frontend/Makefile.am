@@ -5,6 +5,6 @@ AM_CPPFLAGS = -I$(top_srcdir)/include
 
 faad_LDADD = $(top_builddir)/libfaad/libfaad.la
 
-faad_SOURCES = mp4read.c audio.c main.c marcus.c marcus.cmdline.c marcus.rescue.c audio.h marcus.h mp4read.h unicode_support.c unicode_support.h
+faad_SOURCES = mp4read.c audio.c main.c marcus.c marcus.cmdline.c marcus.rescue.c marcus.wav.c audio.h marcus.h mp4read.h unicode_support.c unicode_support.h
 
 EXTRA_faad_SOURCES = getopt.c getopt.h

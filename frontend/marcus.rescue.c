@@ -133,7 +133,7 @@ static int rmf_decode_aac(
     cmdline_options *options,
     NeAACDecHandle hDecoder,
     buffer_infile *pinfile,
-    buffer_outfile *poutfile)
+    audio_wav_file *poutfile)
 {
     NeAACDecFrameInfo frameinfo;
     int a = 0;
@@ -143,13 +143,13 @@ static int rmf_decode_aac(
     do
     {
         void *sample_buffer = NeAACDecDecode(hDecoder, &frameinfo, pinfile->buffer, pinfile->buffer_size);
-        logger(LOGGER_INFO, "Object count: %d; Frame info: channels = %d, bytes consumed = %d\n", a++, frameinfo.channels, frameinfo.bytesconsumed);
+        logger(LOGGER_INFO, "Object count: %d; Frame info: channels = %d, bytes consumed = %d\n", ++a, frameinfo.channels, frameinfo.bytesconsumed);
         if (frameinfo.channels == 0) return -1;
 
         advance_inbuffer(pinfile, frameinfo.bytesconsumed);
         fill_inbuffer(pinfile);
     }
-    while (!pinfile->at_eof);
+    while (TRUE);
 
     return 0;
 }
@@ -160,7 +160,7 @@ static int rmf_initialize_aac_decoder(
     cmdline_options *options,
     NeAACDecHandle hDecoder,
     buffer_infile *pinfile,
-    buffer_outfile *poutfile)
+    audio_wav_file *poutfile)
 {
     int result = -1;
     unsigned long samplerate;
@@ -189,20 +189,17 @@ static int rmf_open_outfile(
 {
     int result = -1;
 
-    buffer_outfile outfileBuffer;
-    initialize_buffer_outfile(&outfileBuffer);
+    audio_wav_file *poutfile = create_audio_wav_file(logger, options->channels);
+    if (poutfile == NULL) return -1;
 
-    outfileBuffer.file = faad_fopen(options->output_filename, "wb");
-    if (outfileBuffer.file != NULL)
+    result = wav_file_open(poutfile, options->output_filename);
+    if (SUCCESSFUL(result))
     {
-        result = rmf_initialize_aac_decoder(logger, options, hDecoder, pinfile, &outfileBuffer);
-        fclose(outfileBuffer.file);
-    }
-    else
-    {
-        logger(LOGGER_ERROR, "Could not open outfile: %d, %s\n", errno, strerror(errno));
+        result = rmf_initialize_aac_decoder(logger, options, hDecoder, pinfile, poutfile);
+        wav_file_close(poutfile);
     }
 
+    release_audio_wav_file(poutfile);
     return result;
 }
 
