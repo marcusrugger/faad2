@@ -452,7 +452,7 @@ void raw_data_block(NeAACDecStruct *hDecoder, NeAACDecFrameInfo *hInfo,
         {
             switch (id_syn_ele) {
             case ID_SCE:
-                fprintf(stderr, "ID_SCE\n");
+                //fprintf(stderr, "ID_SCE\n");
                 ele_this_frame++;
                 if (hDecoder->first_syn_ele == 25) hDecoder->first_syn_ele = id_syn_ele;
                 decode_sce_lfe(hDecoder, hInfo, ld, id_syn_ele);
@@ -460,7 +460,7 @@ void raw_data_block(NeAACDecStruct *hDecoder, NeAACDecFrameInfo *hInfo,
                     return;
                 break;
             case ID_CPE:
-                fprintf(stderr, "ID_CPE\n");
+                //fprintf(stderr, "ID_CPE\n");
                 ele_this_frame++;
                 if (hDecoder->first_syn_ele == 25) hDecoder->first_syn_ele = id_syn_ele;
                 decode_cpe(hDecoder, hInfo, ld, id_syn_ele);
@@ -468,7 +468,7 @@ void raw_data_block(NeAACDecStruct *hDecoder, NeAACDecFrameInfo *hInfo,
                     return;
                 break;
             case ID_LFE:
-                fprintf(stderr, "ID_LFE\n");
+                //fprintf(stderr, "ID_LFE\n");
 #ifdef DRM
                 hInfo->error = 32;
 #else
@@ -480,7 +480,7 @@ void raw_data_block(NeAACDecStruct *hDecoder, NeAACDecFrameInfo *hInfo,
                     return;
                 break;
             case ID_CCE: /* not implemented yet, but skip the bits */
-                fprintf(stderr, "ID_CCE\n");
+                //fprintf(stderr, "ID_CCE\n");
 #ifdef DRM
                 hInfo->error = 32;
 #else
@@ -495,12 +495,12 @@ void raw_data_block(NeAACDecStruct *hDecoder, NeAACDecFrameInfo *hInfo,
                     return;
                 break;
             case ID_DSE:
-                fprintf(stderr, "ID_DSE\n");
+                //fprintf(stderr, "ID_DSE\n");
                 ele_this_frame++;
                 data_stream_element(hDecoder, ld);
                 break;
             case ID_PCE:
-                fprintf(stderr, "ID_PCE\n");
+                //fprintf(stderr, "ID_PCE\n");
                 if (ele_this_frame != 0)
                 {
                     hInfo->error = 31;
@@ -515,7 +515,7 @@ void raw_data_block(NeAACDecStruct *hDecoder, NeAACDecFrameInfo *hInfo,
                 //hDecoder->pce_set = 1;
                 break;
             case ID_FIL:
-                fprintf(stderr, "ID_FIL\n");
+                //fprintf(stderr, "ID_FIL\n");
                 ele_this_frame++;
                 /* one sbr_info describes a channel_element not a channel! */
                 /* if we encounter SBR data here: error */
@@ -528,11 +528,11 @@ void raw_data_block(NeAACDecStruct *hDecoder, NeAACDecFrameInfo *hInfo,
                     return;
                 break;
             case ID_END:
-                fprintf(stderr, "\nID_END\n");
+                //fprintf(stderr, "\nID_END\n");
                 break;
             }
 
-            faad_print_total_bits_read();
+            //faad_print_total_bits_read();
         }
 #ifdef ERROR_RESILIENCE
     } else {
@@ -540,19 +540,19 @@ void raw_data_block(NeAACDecStruct *hDecoder, NeAACDecFrameInfo *hInfo,
         switch (hDecoder->channelConfiguration)
         {
         case 1:
-            fprintf(stderr, "case 1\n");
+            //fprintf(stderr, "case 1\n");
             decode_sce_lfe(hDecoder, hInfo, ld, ID_SCE);
             if (hInfo->error > 0)
                 return;
             break;
         case 2:
-            fprintf(stderr, "case 2\n");
+            //fprintf(stderr, "case 2\n");
             decode_cpe(hDecoder, hInfo, ld, ID_CPE);
             if (hInfo->error > 0)
                 return;
             break;
         case 3:
-            fprintf(stderr, "case 3\n");
+            //fprintf(stderr, "case 3\n");
             decode_sce_lfe(hDecoder, hInfo, ld, ID_SCE);
             if (hInfo->error > 0)
                 return;
@@ -561,7 +561,7 @@ void raw_data_block(NeAACDecStruct *hDecoder, NeAACDecFrameInfo *hInfo,
                 return;
             break;
         case 4:
-            fprintf(stderr, "case 4\n");
+            //fprintf(stderr, "case 4\n");
             decode_sce_lfe(hDecoder, hInfo, ld, ID_SCE);
             if (hInfo->error > 0)
                 return;
@@ -573,7 +573,7 @@ void raw_data_block(NeAACDecStruct *hDecoder, NeAACDecFrameInfo *hInfo,
                 return;
             break;
         case 5:
-            fprintf(stderr, "case 5\n");
+            //fprintf(stderr, "case 5\n");
             decode_sce_lfe(hDecoder, hInfo, ld, ID_SCE);
             if (hInfo->error > 0)
                 return;
@@ -585,7 +585,7 @@ void raw_data_block(NeAACDecStruct *hDecoder, NeAACDecFrameInfo *hInfo,
                 return;
             break;
         case 6:
-            fprintf(stderr, "case 6\n");
+            //fprintf(stderr, "case 6\n");
             decode_sce_lfe(hDecoder, hInfo, ld, ID_SCE);
             if (hInfo->error > 0)
                 return;
@@ -600,7 +600,7 @@ void raw_data_block(NeAACDecStruct *hDecoder, NeAACDecFrameInfo *hInfo,
                 return;
             break;
         case 7: /* 8 channels */
-            fprintf(stderr, "case 7\n");
+            //fprintf(stderr, "case 7\n");
             decode_sce_lfe(hDecoder, hInfo, ld, ID_SCE);
             if (hInfo->error > 0)
                 return;
@@ -618,7 +618,7 @@ void raw_data_block(NeAACDecStruct *hDecoder, NeAACDecFrameInfo *hInfo,
                 return;
             break;
         default:
-            fprintf(stderr, "default\n");
+            //fprintf(stderr, "default\n");
             hInfo->error = 7;
             return;
         }
