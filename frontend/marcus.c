@@ -33,6 +33,7 @@ static char *LoggerLevelToString(LOGGER_LEVEL level)
 {
     switch (level)
     {
+        case LOGGER_QUIET:   return "QUIET";
         case LOGGER_DISPLAY: return "DISPLAY";
         case LOGGER_ERROR:   return "ERROR";
         case LOGGER_WARNING: return "WARNING";

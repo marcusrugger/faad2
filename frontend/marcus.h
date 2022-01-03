@@ -11,7 +11,8 @@ int mymain(int argc, char *argv[]);
 
 typedef enum
 {
-    LOGGER_DISPLAY = 0,
+    LOGGER_QUIET = 0,
+    LOGGER_DISPLAY,
     LOGGER_ERROR,
     LOGGER_WARNING,
     LOGGER_INFO,
@@ -28,7 +29,9 @@ typedef struct
     char *input_filename;
     char *output_filename;
 
+    char object_type;
     long samplerate;
+    char output_format;
 }
 cmdline_options;
 

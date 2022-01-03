@@ -57,7 +57,8 @@ static int process_cmdline_option_logger_level(Logger logger)
         return -1;
     }
 
-    if (strcasecmp(optarg, "display") == 0) set_logger_level(LOGGER_DISPLAY);
+    if (strcasecmp(optarg, "quiet") == 0) set_logger_level(LOGGER_QUIET);
+    else if (strcasecmp(optarg, "display") == 0) set_logger_level(LOGGER_DISPLAY);
     else if (strcasecmp(optarg, "error") == 0) set_logger_level(LOGGER_ERROR);
     else if (strcasecmp(optarg, "warning") == 0) set_logger_level(LOGGER_WARNING);
     else if (strcasecmp(optarg, "info") == 0) set_logger_level(LOGGER_INFO);
@@ -106,7 +107,7 @@ static int display_help_options(Logger logger)
     logger(LOGGER_DISPLAY, "Current available options:\n\n");
     logger(LOGGER_DISPLAY, "-h, --help:       display this help message\n");
     logger(LOGGER_DISPLAY, "-i, --infile:     input filename\n");
-    logger(LOGGER_DISPLAY, "-l, --logger:     logging level (display, error, warning, info, debug)\n");
+    logger(LOGGER_DISPLAY, "-l, --logger:     logging level (quiet, display, error, warning, info, debug)\n");
     logger(LOGGER_DISPLAY, "-s, --samplerate: sample rate\n");
     logger(LOGGER_DISPLAY, "-o, --outfile:    output filename\n");
     return -1;
@@ -177,14 +178,14 @@ static void set_to_defaults(cmdline_options *options)
 {
     options->input_filename = NULL;
     options->output_filename = NULL;
-    options->samplerate = 0;
+    options->object_type = LC;
+    options->samplerate = 48000;
+    options->output_format = FAAD_FMT_16BIT;
 }
 
 
 cmdline_options *initialize_cmdline_options(Logger logger, int argc, char *argv[])
 {
-    logger(LOGGER_INFO, "Parsing command line arguments: argc = %d\n", argc);
-
     cmdline_options *options = (cmdline_options *) malloc(sizeof(cmdline_options));
     if (options == NULL) return NULL;
     set_to_defaults(options);
