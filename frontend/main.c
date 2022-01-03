@@ -678,8 +678,10 @@ static int decodeAACfile(char *aacfile, char *sndfile, char *adts_fn, int to_std
     }
 
     int frameCount = 0;
+    int output_count = 4;
 
-    do
+    //do
+    for (int mycount = 0; mycount < 16; mycount++)
     {
         //faad_fprintf(stderr, "frameCount: %d\r", ++frameCount);
         sample_buffer = NeAACDecDecode(hDecoder, &frameInfo,
@@ -760,11 +762,13 @@ static int decodeAACfile(char *aacfile, char *sndfile, char *adts_fn, int to_std
 #endif
         }
 
-        if ((frameInfo.error == 0) && (frameInfo.samples > 0) && (!adts_out))
+        if ((--output_count <= 0) && (frameInfo.error == 0) && (frameInfo.samples > 0) && (!adts_out))
         {
             if (write_audio_file(aufile, sample_buffer, frameInfo.samples, 0) == 0)
                 break;
         }
+
+        if (output_count <= 0) output_count = 8;
 
         /* fill buffer */
         fill_buffer(&b);
@@ -772,7 +776,7 @@ static int decodeAACfile(char *aacfile, char *sndfile, char *adts_fn, int to_std
         if (b.bytes_into_buffer == 0)
             sample_buffer = NULL; /* to make sure it stops now */
 
-    } while (sample_buffer != NULL);
+    }// while (sample_buffer != NULL);
 
     NeAACDecClose(hDecoder);
 
@@ -1380,6 +1384,8 @@ static int faad_main(int argc, char *argv[])
     return 0;
 }
 
+#define MARCUS
+int mymain(int argc, char *argv[]);
 int main(int argc, char *argv[])
 {
 #if defined WIN32 || defined _WIN32 || defined WIN64 || defined _WIN64
@@ -1391,6 +1397,8 @@ int main(int argc, char *argv[])
     free_commandline_arguments_utf8(&argc_utf8, &argv_utf8);
     uninit_console_utf8();
     return exit_code;
+#elif defined MARCUS
+    return mymain(argc, argv);
 #else
     return faad_main(argc, argv);
 #endif
