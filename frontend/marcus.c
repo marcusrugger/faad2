@@ -64,8 +64,14 @@ static void mylog(LOGGER_LEVEL level, char *format, ...)
 
 int mymain(int argc, char *argv[])
 {
-    cmdline_options *options = initialize_cmdline_options(mylog, argc, argv);
-    if (options == NULL) return -1;
+    int result = -1;
 
-    return rescue_media_file(mylog, options);
+    cmdline_options *options = initialize_cmdline_options(mylog, argc, argv);
+    if (options != NULL)
+    {
+        result = rescue_media_file(mylog, options);
+        release_options(options);
+    }
+
+    return result;
 }

@@ -116,37 +116,17 @@ static int display_help_options(Logger logger)
 
 static int process_cmdline_option(Logger logger, cmdline_options *options, int c)
 {
-    int result = 0;
-
     switch (c)
     {
-        case 'h':
-            result = display_help_options(logger);
-            break;
-
-        case 'i':
-            result = process_cmdline_option_input_filename(logger, options);
-            break;
-
-        case 'l':
-            result = process_cmdline_option_logger_level(logger);
-            break;
-
-        case 'o':
-            result = process_cmdline_option_output_filename(logger, options);
-            break;
-
-        case 's':
-            result = process_cmdline_option_samplerate(logger, options);
-            break;
-
+        case 'h': return display_help_options(logger);
+        case 'i': return process_cmdline_option_input_filename(logger, options);
+        case 'l': return process_cmdline_option_logger_level(logger);
+        case 'o': return process_cmdline_option_output_filename(logger, options);
+        case 's': return process_cmdline_option_samplerate(logger, options);
         default:
             logger(LOGGER_WARNING, "Unrecognized option: %c\n", c);
-            result = -1;
-            break;
+            return 0;
     }
-
-    return result;
 }
 
 
@@ -183,6 +163,17 @@ static void set_to_defaults(cmdline_options *options)
     options->output_format = FAAD_FMT_16BIT;
 }
 
+void release_options(cmdline_options *options)
+{
+    if (options->input_filename != NULL)
+        free(options->input_filename);
+
+    if (options->output_filename != NULL)
+        free(options->output_filename);
+
+    free(options);
+}
+
 
 cmdline_options *initialize_cmdline_options(Logger logger, int argc, char *argv[])
 {
@@ -193,6 +184,6 @@ cmdline_options *initialize_cmdline_options(Logger logger, int argc, char *argv[
     int result = process_cmdline_options(logger, options, argc, argv);
     if (SUCCESSFUL(result)) return options;
 
-    free(options);
+    release_options(options);
     return NULL;
 }
