@@ -28,21 +28,6 @@
 
 #include "marcus.h"
 
-// #ifdef HAVE_GETOPT_H
-// # include <getopt.h>
-// #else
-// # include "getopt.h"
-// # include "getopt.c"
-// #endif
-
-
-
-static int rescue_media_file(Logger logger, cmdline_options *options)
-{
-    return 0;
-}
-
-
 
 static char *LoggerLevelToString(LOGGER_LEVEL level)
 {
@@ -81,7 +66,5 @@ int mymain(int argc, char *argv[])
     cmdline_options *options = initialize_cmdline_options(mylog, argc, argv);
     if (options == NULL) return -1;
 
-    int result = rescue_media_file(mylog, options);
-
-    return result;
+    return rescue_media_file(mylog, options);
 }

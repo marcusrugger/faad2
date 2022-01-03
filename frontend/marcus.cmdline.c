@@ -28,13 +28,6 @@
 
 #include "marcus.h"
 
-// #ifdef HAVE_GETOPT_H
-// # include <getopt.h>
-// #else
-// # include "getopt.h"
-// # include "getopt.c"
-// #endif
-
 
 static int process_cmdline_option_input_filename(Logger logger, cmdline_options *options)
 {

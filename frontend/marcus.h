@@ -31,6 +31,6 @@ typedef struct
 cmdline_options;
 
 cmdline_options *initialize_cmdline_options(Logger logger, int argc, char *argv[]);
-
+int rescue_media_file(Logger logger, cmdline_options *options);
 
 #endif
