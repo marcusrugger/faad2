@@ -30,6 +30,7 @@ typedef struct
     char *output_filename;
 
     char object_type;
+    int channels;
     long samplerate;
     char output_format;
 }

@@ -37,9 +37,23 @@ static void display_cmdline_options(Logger logger, cmdline_options *options)
     logger(LOGGER_INFO, "output filename: %s\n", options->output_filename);
     logger(LOGGER_INFO, "------------------------------\n");
     logger(LOGGER_INFO, "    object type: %d\n", options->object_type);
+    logger(LOGGER_INFO, "       channels: %d\n", options->channels);
     logger(LOGGER_INFO, "    sample rate: %d\n", options->samplerate);
     logger(LOGGER_INFO, "  output format: %d\n", options->output_format);
     logger(LOGGER_INFO, "------------------------------\n");
+}
+
+
+static int process_cmdline_option_channels(Logger logger, cmdline_options *options)
+{
+    if (optarg == NULL)
+    {
+        logger(LOGGER_WARNING, "Missing channels parameter.\n");
+        return -1;
+    }
+
+    options->channels = atoi(optarg);
+    return 0;
 }
 
 
@@ -132,6 +146,7 @@ static int process_cmdline_option(Logger logger, cmdline_options *options, int c
 {
     switch (c)
     {
+        case 'c': return process_cmdline_option_channels(logger, options);
         case 'h': return display_help_options(logger);
         case 'i': return process_cmdline_option_input_filename(logger, options);
         case 'l': return process_cmdline_option_logger_level(logger);
@@ -150,15 +165,16 @@ static int process_cmdline_options(Logger logger, cmdline_options *options, int 
     int option_index = 0;
     static struct option long_options[] =
     {
+        { "channels",   required_argument, 0, 'c' },
+        { "help",       no_argument,       0, 'h' },
         { "infile",     required_argument, 0, 'i' },
         { "outfile",    required_argument, 0, 'o' },
         { "logger",     required_argument, 0, 'l' },
         { "samplerate", required_argument, 0, 's' },
-        { "help",       no_argument,       0, 'h' },
         { 0, 0, 0, 0 }
     };
 
-    while ((ch = getopt_long(argc, argv, "o:h", long_options, NULL)) != -1)
+    while ((ch = getopt_long(argc, argv, "c:i:o:l:s:h", long_options, NULL)) != -1)
     {
         int result = process_cmdline_option(logger, options, ch);
         if (FAILED(result)) return result;
@@ -173,6 +189,7 @@ static void set_to_defaults(cmdline_options *options)
     options->input_filename = NULL;
     options->output_filename = NULL;
     options->object_type = LC;
+    options->channels = 16;
     options->samplerate = 48000;
     options->output_format = FAAD_FMT_16BIT;
 }

@@ -30,7 +30,14 @@
 #include "marcus.h"
 
 
+#ifndef min
+#define min(a,b) ( (a) < (b) ? (a) : (b) )
+#endif
+
+
 static const int MAX_CHANNELS = 16;
+static const int FALSE = 0;
+static const int TRUE = !FALSE;
 
 
 typedef struct
@@ -38,6 +45,11 @@ typedef struct
     FILE *file;
     unsigned char *buffer;
     int buffer_size;
+
+    int at_eof;
+    int bytes_consumed;
+    int bytes_left_in_buffer;
+    int file_offset;
 }
 buffer_infile;
 
@@ -46,6 +58,61 @@ static void initialize_buffer_infile(buffer_infile *pinfile)
     pinfile->file = NULL;
     pinfile->buffer = NULL;
     pinfile->buffer_size = 0;
+    pinfile->at_eof = FALSE;
+    pinfile->bytes_consumed = 0;
+    pinfile->file_offset = 0;
+}
+
+static int initial_fill_inbuffer(buffer_infile *pinfile)
+{
+    int bread = fread(pinfile->buffer, 1, pinfile->buffer_size, pinfile->file);
+    pinfile->bytes_left_in_buffer = bread;
+    return bread;
+}
+
+static void fill_inbuffer(buffer_infile *pinfile)
+{
+    if (pinfile->bytes_consumed > 0)
+    {
+        if (pinfile->bytes_left_in_buffer)
+        {
+            memmove(
+                pinfile->buffer,
+                pinfile->buffer + pinfile->bytes_consumed,
+                pinfile->bytes_left_in_buffer * sizeof(unsigned char));
+        }
+
+        if (!pinfile->at_eof)
+        {
+            int bread = fread(
+                pinfile->buffer + pinfile->bytes_left_in_buffer,
+                1,
+                pinfile->bytes_consumed,
+                pinfile->file);
+
+            pinfile->at_eof = (bread != pinfile->bytes_consumed);
+
+            pinfile->bytes_left_in_buffer += bread;
+        }
+
+        pinfile->bytes_consumed = 0;
+    }
+}
+
+static void advance_inbuffer(buffer_infile *pinfile, int bytes)
+{
+    while ((pinfile->bytes_left_in_buffer > 0) && (bytes > 0))
+    {
+        int chunk = min(bytes, pinfile->bytes_left_in_buffer);
+
+        bytes -= chunk;
+        pinfile->file_offset += chunk;
+        pinfile->bytes_consumed += chunk;
+        pinfile->bytes_left_in_buffer -= chunk;
+
+        if (pinfile->bytes_left_in_buffer == 0)
+            fill_inbuffer(pinfile);
+    }
 }
 
 
@@ -68,11 +135,46 @@ static int rmf_decode_aac(
     buffer_infile *pinfile,
     buffer_outfile *poutfile)
 {
-    int result = -1;
+    NeAACDecFrameInfo frameinfo;
+    int a = 0;
 
-    for (int i = 0; i < 1; i++)
+    int bread = initial_fill_inbuffer(pinfile);
+
+    do
     {
+        void *sample_buffer = NeAACDecDecode(hDecoder, &frameinfo, pinfile->buffer, pinfile->buffer_size);
+        logger(LOGGER_INFO, "Object count: %d; Frame info: channels = %d, bytes consumed = %d\n", a++, frameinfo.channels, frameinfo.bytesconsumed);
+        if (frameinfo.channels == 0) return -1;
 
+        advance_inbuffer(pinfile, frameinfo.bytesconsumed);
+        fill_inbuffer(pinfile);
+    }
+    while (!pinfile->at_eof);
+
+    return 0;
+}
+
+
+static int rmf_initialize_aac_decoder(
+    Logger logger,
+    cmdline_options *options,
+    NeAACDecHandle hDecoder,
+    buffer_infile *pinfile,
+    buffer_outfile *poutfile)
+{
+    int result = -1;
+    unsigned long samplerate;
+    unsigned char channels;
+
+    int bread = NeAACDecInit(hDecoder, pinfile->buffer, pinfile->buffer_size, &samplerate, &channels);
+    if (bread >= 0)
+    {
+        logger(LOGGER_INFO, "NeAACDecInit: samplerate = %ld, channels = %d\n", samplerate, channels);
+        result = rmf_decode_aac(logger, options, hDecoder, pinfile, poutfile);
+    }
+    else
+    {
+        logger(LOGGER_ERROR, "Could not initialize aac decoder.\n");
     }
 
     return result;
@@ -93,7 +195,7 @@ static int rmf_open_outfile(
     outfileBuffer.file = faad_fopen(options->output_filename, "wb");
     if (outfileBuffer.file != NULL)
     {
-        result = rmf_decode_aac(logger, options, hDecoder, pinfile, &outfileBuffer);
+        result = rmf_initialize_aac_decoder(logger, options, hDecoder, pinfile, &outfileBuffer);
         fclose(outfileBuffer.file);
     }
     else
@@ -117,6 +219,7 @@ static int rmf_malloc_infile_buffer(
     pinfile->buffer = (unsigned char*)malloc(pinfile->buffer_size);
     if (pinfile->buffer != NULL)
     {
+        memset(pinfile->buffer, 0, pinfile->buffer_size);
         result = rmf_open_outfile(logger, options, hDecoder, pinfile);
         free(pinfile->buffer);
     }
