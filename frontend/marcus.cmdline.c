@@ -49,6 +49,25 @@ static int process_cmdline_option_input_filename(Logger logger, cmdline_options 
 }
 
 
+static int process_cmdline_option_logger_level(Logger logger)
+{
+    if (optarg == NULL)
+    {
+        logger(LOGGER_WARNING, "Missing logger level parameter.\n");
+        return -1;
+    }
+
+    if (strcasecmp(optarg, "display") == 0) set_logger_level(LOGGER_DISPLAY);
+    else if (strcasecmp(optarg, "error") == 0) set_logger_level(LOGGER_ERROR);
+    else if (strcasecmp(optarg, "warning") == 0) set_logger_level(LOGGER_WARNING);
+    else if (strcasecmp(optarg, "info") == 0) set_logger_level(LOGGER_INFO);
+    else if (strcasecmp(optarg, "debug") == 0) set_logger_level(LOGGER_DEBUG);
+    else set_logger_level(LOGGER_DISPLAY);
+
+    return 0;
+}
+
+
 static int process_cmdline_option_output_filename(Logger logger, cmdline_options *options)
 {
     if (optarg == NULL)
@@ -69,21 +88,15 @@ static int process_cmdline_option_output_filename(Logger logger, cmdline_options
 }
 
 
-static int process_cmdline_option_logger_level(Logger logger)
+static int process_cmdline_option_samplerate(Logger logger, cmdline_options *options)
 {
     if (optarg == NULL)
     {
-        logger(LOGGER_WARNING, "Missing logger level parameter.\n");
+        logger(LOGGER_WARNING, "Missing sample rate parameter.\n");
         return -1;
     }
 
-    if (strcasecmp(optarg, "display") == 0) set_logger_level(LOGGER_DISPLAY);
-    else if (strcasecmp(optarg, "error") == 0) set_logger_level(LOGGER_ERROR);
-    else if (strcasecmp(optarg, "warning") == 0) set_logger_level(LOGGER_WARNING);
-    else if (strcasecmp(optarg, "info") == 0) set_logger_level(LOGGER_INFO);
-    else if (strcasecmp(optarg, "debug") == 0) set_logger_level(LOGGER_DEBUG);
-    else set_logger_level(LOGGER_DISPLAY);
-
+    options->samplerate = atol(optarg);
     return 0;
 }
 
@@ -91,10 +104,11 @@ static int process_cmdline_option_logger_level(Logger logger)
 static int display_help_options(Logger logger)
 {
     logger(LOGGER_DISPLAY, "Current available options:\n\n");
-    logger(LOGGER_DISPLAY, "-h, --help:    display this help message\n");
-    logger(LOGGER_DISPLAY, "-i, --infile:  input filename\n");
-    logger(LOGGER_DISPLAY, "-l, --logger:  logging level (display, error, warning, info, debug)\n");
-    logger(LOGGER_DISPLAY, "-o, --outfile: output filename\n");
+    logger(LOGGER_DISPLAY, "-h, --help:       display this help message\n");
+    logger(LOGGER_DISPLAY, "-i, --infile:     input filename\n");
+    logger(LOGGER_DISPLAY, "-l, --logger:     logging level (display, error, warning, info, debug)\n");
+    logger(LOGGER_DISPLAY, "-s, --samplerate: sample rate\n");
+    logger(LOGGER_DISPLAY, "-o, --outfile:    output filename\n");
     return -1;
 }
 
@@ -113,12 +127,16 @@ static int process_cmdline_option(Logger logger, cmdline_options *options, int c
             result = process_cmdline_option_input_filename(logger, options);
             break;
 
+        case 'l':
+            result = process_cmdline_option_logger_level(logger);
+            break;
+
         case 'o':
             result = process_cmdline_option_output_filename(logger, options);
             break;
 
-        case 'l':
-            result = process_cmdline_option_logger_level(logger);
+        case 's':
+            result = process_cmdline_option_samplerate(logger, options);
             break;
 
         default:
@@ -155,12 +173,21 @@ static int process_cmdline_options(Logger logger, cmdline_options *options, int 
 }
 
 
+static void set_to_defaults(cmdline_options *options)
+{
+    options->input_filename = NULL;
+    options->output_filename = NULL;
+    options->samplerate = 0;
+}
+
+
 cmdline_options *initialize_cmdline_options(Logger logger, int argc, char *argv[])
 {
     logger(LOGGER_INFO, "Parsing command line arguments: argc = %d\n", argc);
 
     cmdline_options *options = (cmdline_options *) malloc(sizeof(cmdline_options));
     if (options == NULL) return NULL;
+    set_to_defaults(options);
 
     int result = process_cmdline_options(logger, options, argc, argv);
     if (SUCCESSFUL(result)) return options;

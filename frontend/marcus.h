@@ -27,6 +27,8 @@ typedef struct
 {
     char *input_filename;
     char *output_filename;
+
+    long samplerate;
 }
 cmdline_options;
 

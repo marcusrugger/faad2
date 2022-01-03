@@ -29,8 +29,21 @@
 #include "marcus.h"
 
 
+static void cmdline_to_decconfig(cmdline_options *options, NeAACDecConfigurationPtr config)
+{
+    if (options->samplerate > 0) config->defSampleRate = options->samplerate;
+}
+
 
 int rescue_media_file(Logger logger, cmdline_options *options)
 {
+    NeAACDecHandle hDecoder = NeAACDecOpen();
+    NeAACDecConfigurationPtr config = NeAACDecGetCurrentConfiguration(hDecoder);
+    NeAACDecFrameInfo frameInfo;
+
+    cmdline_to_decconfig(options, config);
+
+    logger(LOGGER_INFO, "Default sample rate: %d\n", config->defSampleRate);
+
     return 0;
 }
