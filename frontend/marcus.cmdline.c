@@ -29,6 +29,20 @@
 #include "marcus.h"
 
 
+static void display_cmdline_options(Logger logger, cmdline_options *options)
+{
+    logger(LOGGER_INFO, "Current configuration:\n");
+    logger(LOGGER_INFO, "------------------------------\n");
+    logger(LOGGER_INFO, " input filename: %s\n", options->input_filename);
+    logger(LOGGER_INFO, "output filename: %s\n", options->output_filename);
+    logger(LOGGER_INFO, "------------------------------\n");
+    logger(LOGGER_INFO, "    object type: %d\n", options->object_type);
+    logger(LOGGER_INFO, "    sample rate: %d\n", options->samplerate);
+    logger(LOGGER_INFO, "  output format: %d\n", options->output_format);
+    logger(LOGGER_INFO, "------------------------------\n");
+}
+
+
 static int process_cmdline_option_input_filename(Logger logger, cmdline_options *options)
 {
     if (optarg == NULL)
@@ -163,7 +177,7 @@ static void set_to_defaults(cmdline_options *options)
     options->output_format = FAAD_FMT_16BIT;
 }
 
-void release_options(cmdline_options *options)
+void release_cmdline_options(cmdline_options *options)
 {
     if (options->input_filename != NULL)
         free(options->input_filename);
@@ -182,8 +196,12 @@ cmdline_options *initialize_cmdline_options(Logger logger, int argc, char *argv[
     set_to_defaults(options);
 
     int result = process_cmdline_options(logger, options, argc, argv);
-    if (SUCCESSFUL(result)) return options;
+    if (FAILED(result))
+    {
+        release_cmdline_options(options);
+        return NULL;
+    }
 
-    release_options(options);
-    return NULL;
+    display_cmdline_options(logger, options);
+    return options;
 }

@@ -70,7 +70,7 @@ int mymain(int argc, char *argv[])
     if (options != NULL)
     {
         result = rescue_media_file(mylog, options);
-        release_options(options);
+        release_cmdline_options(options);
     }
 
     return result;

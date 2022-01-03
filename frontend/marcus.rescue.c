@@ -30,11 +30,23 @@
 #include "marcus.h"
 
 
+static const int MAX_CHANNELS = 16;
+
+
 typedef struct
 {
     FILE *file;
+    unsigned char *buffer;
+    int buffer_size;
 }
 buffer_infile;
+
+static void initialize_buffer_infile(buffer_infile *pinfile)
+{
+    pinfile->file = NULL;
+    pinfile->buffer = NULL;
+    pinfile->buffer_size = 0;
+}
 
 
 typedef struct
@@ -43,15 +55,26 @@ typedef struct
 }
 buffer_outfile;
 
+static void initialize_buffer_outfile(buffer_outfile *poutfile)
+{
+    poutfile->file = NULL;
+}
 
-static int rmf_next_step(
+
+static int rmf_decode_aac(
     Logger logger,
     cmdline_options *options,
     NeAACDecHandle hDecoder,
-    buffer_infile *pInFile,
-    buffer_outfile *pOutFile)
+    buffer_infile *pinfile,
+    buffer_outfile *poutfile)
 {
     int result = -1;
+
+    for (int i = 0; i < 1; i++)
+    {
+
+    }
+
     return result;
 }
 
@@ -60,15 +83,17 @@ static int rmf_open_outfile(
     Logger logger,
     cmdline_options *options,
     NeAACDecHandle hDecoder,
-    buffer_infile *pInFile)
+    buffer_infile *pinfile)
 {
     int result = -1;
+
     buffer_outfile outfileBuffer;
+    initialize_buffer_outfile(&outfileBuffer);
 
     outfileBuffer.file = faad_fopen(options->output_filename, "wb");
     if (outfileBuffer.file != NULL)
     {
-        result = rmf_next_step(logger, options, hDecoder, pInFile, &outfileBuffer);
+        result = rmf_decode_aac(logger, options, hDecoder, pinfile, &outfileBuffer);
         fclose(outfileBuffer.file);
     }
     else
@@ -80,18 +105,44 @@ static int rmf_open_outfile(
 }
 
 
+static int rmf_malloc_infile_buffer(
+    Logger logger,
+    cmdline_options *options,
+    NeAACDecHandle hDecoder,
+    buffer_infile *pinfile)
+{
+    int result = -1;
+
+    pinfile->buffer_size = FAAD_MIN_STREAMSIZE * MAX_CHANNELS;
+    pinfile->buffer = (unsigned char*)malloc(pinfile->buffer_size);
+    if (pinfile->buffer != NULL)
+    {
+        result = rmf_open_outfile(logger, options, hDecoder, pinfile);
+        free(pinfile->buffer);
+    }
+    else
+    {
+        logger(LOGGER_ERROR, "Could not instantiate infile buffer: %d, %s\n", errno, strerror(errno));
+    }
+
+    return result;    
+}
+
+
 static int rmf_open_infile(
     Logger logger,
     cmdline_options *options,
     NeAACDecHandle hDecoder)
 {
     int result = -1;
+
     buffer_infile infileBuffer;
+    initialize_buffer_infile(&infileBuffer);
 
     infileBuffer.file = faad_fopen(options->input_filename, "rb");
     if (infileBuffer.file != NULL)
     {
-        result = rmf_open_outfile(logger, options, hDecoder, &infileBuffer);
+        result = rmf_malloc_infile_buffer(logger, options, hDecoder, &infileBuffer);
         fclose(infileBuffer.file);
     }
     else
@@ -100,23 +151,6 @@ static int rmf_open_infile(
     }
 
     return result;
-}
-
-
-static void display_config(Logger logger, cmdline_options *options, NeAACDecConfigurationPtr config)
-{
-    logger(LOGGER_INFO, "Current configuration:\n");
-    logger(LOGGER_INFO, "------------------------------\n");
-    logger(LOGGER_INFO, "         input filename: %s\n", options->input_filename);
-    logger(LOGGER_INFO, "        output filename: %s\n", options->output_filename);
-    logger(LOGGER_INFO, "------------------------------\n");
-    logger(LOGGER_INFO, "          defObjectType: %d\n", config->defObjectType);
-    logger(LOGGER_INFO, "          defSampleRate: %d\n", config->defSampleRate);
-    logger(LOGGER_INFO, "           outputFormat: %d\n", config->outputFormat);
-    logger(LOGGER_INFO, "            downMatrix): %d\n", config->downMatrix);
-    logger(LOGGER_INFO, "       useOldADTSFormat: %d\n", config->useOldADTSFormat);
-    logger(LOGGER_INFO, "dontUpSampleImplicitSBR: %d\n", config->dontUpSampleImplicitSBR);
-    logger(LOGGER_INFO, "------------------------------\n");
 }
 
 
@@ -135,7 +169,6 @@ int rescue_media_file(Logger logger, cmdline_options *options)
     NeAACDecHandle hDecoder = NeAACDecOpen();
     NeAACDecConfigurationPtr config = NeAACDecGetCurrentConfiguration(hDecoder);
     cmdline_to_decconfig(options, config);
-    display_config(logger, options, config);
     NeAACDecSetConfiguration(hDecoder, config);
 
     result = rmf_open_infile(logger, options, hDecoder);
