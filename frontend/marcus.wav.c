@@ -47,6 +47,7 @@ struct audio_wav_file_tag
     int bits_per_sample;
     int current_pair_count;
     int total_samples;
+    int header_written;
 
     SAMPLE_FORMAT buffer[SAMPLES_PER_FRAME][CHANNEL_COUNT];
 
@@ -57,7 +58,7 @@ struct audio_wav_file_tag
 static int wav_file_write_multichannel(audio_wav_file *wavfile, unsigned char *inbuffer, int sample_count, int channel_count)
 {
     SAMPLE_FORMAT *sample_buffer = (SAMPLE_FORMAT *)inbuffer;
-    SAMPLE_FORMAT *output_buffer = (SAMPLE_FORMAT *)&wavfile->buffer[0][2 * wavfile->current_pair_count];
+    SAMPLE_FORMAT *output_buffer = (SAMPLE_FORMAT *)wavfile->buffer + 2 * wavfile->current_pair_count;
 
     for (int sindex = sample_count / channel_count; sindex > 0; --sindex)
     {
@@ -69,7 +70,7 @@ static int wav_file_write_multichannel(audio_wav_file *wavfile, unsigned char *i
     if (wavfile->current_pair_count == (wavfile->channels / 2 - 1))
     {
         int count = wavfile->channels * SAMPLES_PER_FRAME;
-        int written = fwrite(wavfile->buffer, wavfile->bits_per_sample / 8, count, wavfile->file);
+        int written = fwrite(wavfile->buffer, sizeof(SAMPLE_FORMAT), count, wavfile->file);
         wavfile->current_pair_count = 0;
         if (count != written)
         {
@@ -125,6 +126,42 @@ typedef struct
 audio_wav_file_header;
 
 
+static void wav_file_initialize_header(audio_wav_file *wavfile, audio_wav_file_header *header)
+{
+    header->riff[0] = 'R';
+    header->riff[1] = 'I';
+    header->riff[2] = 'F';
+    header->riff[3] = 'F';
+
+    header->filesize = 0x7FFFFFFF;
+
+    header->wave[0] = 'W';
+    header->wave[1] = 'A';
+    header->wave[2] = 'V';
+    header->wave[3] = 'E';
+
+    header->fmt[0] = 'f';
+    header->fmt[1] = 'm';
+    header->fmt[2] = 't';
+    header->fmt[3] = ' ';
+
+    header->format_length = 16;
+    header->format = 1;
+    header->channels = wavfile->channels;
+    header->sample_rate = wavfile->sample_rate;
+    header->byte_rate = (wavfile->sample_rate * wavfile->channels * wavfile->bits_per_sample) / 8;
+    header->block_align = (wavfile->bits_per_sample * wavfile->channels) / 8;
+    header->bits_per_sample = wavfile->bits_per_sample;
+
+    header->data[0] = 'd';
+    header->data[1] = 'a';
+    header->data[2] = 't';
+    header->data[3] = 'a';
+
+    header->data_size = 0x7FFFFFFF;
+}
+
+
 static int wav_file_write_header(output_audio_file *audiofile)
 {
     audio_wav_file *wavfile = (audiofile != NULL) ? (audio_wav_file *)audiofile->data : NULL;
@@ -136,42 +173,44 @@ static int wav_file_write_header(output_audio_file *audiofile)
     }
 
     audio_wav_file_header header;
+    wav_file_initialize_header(wavfile, &header);
 
-    header.riff[0] = 'R';
-    header.riff[1] = 'I';
-    header.riff[2] = 'F';
-    header.riff[3] = 'F';
+    size_t written = fwrite(&header, 1, sizeof(header), wavfile->file);
+    if (written != sizeof(header))
+    {
+        wavfile->logger(LOGGER_ERROR, "wav_file_write_header: write failed, unable to write header: %d, %s\n", errno, strerror(errno));
+        return -1;
+    }
 
-    header.filesize = 500000000;
-
-    header.wave[0] = 'W';
-    header.wave[1] = 'A';
-    header.wave[2] = 'V';
-    header.wave[3] = 'E';
-
-    header.fmt[0] = 'f';
-    header.fmt[1] = 'm';
-    header.fmt[2] = 't';
-    header.fmt[3] = ' ';
-
-    header.format_length = 16;
-    header.format = 1;
-    header.channels = wavfile->channels;
-    header.sample_rate = wavfile->sample_rate;
-    header.byte_rate = (wavfile->sample_rate * wavfile->channels * wavfile->bits_per_sample) / 8;
-    header.block_align = (wavfile->bits_per_sample * wavfile->channels) / 8;
-    header.bits_per_sample = wavfile->bits_per_sample;
-
-    header.data[0] = 'd';
-    header.data[1] = 'a';
-    header.data[2] = 't';
-    header.data[3] = 'a';
-
-    header.data_size = 500000000;
-
-    fwrite(&header, 1, sizeof(header), wavfile->file);
+    wavfile->header_written = 1;
 
     return 0;
+}
+
+
+static void wav_file_rewrite_header(audio_wav_file *wavfile)
+{
+    if (!wavfile->header_written) return;
+
+    audio_wav_file_header header;
+    wav_file_initialize_header(wavfile, &header);
+
+    header.data_size = wavfile->total_samples * sizeof(SAMPLE_FORMAT);
+    header.filesize = 4 + (8 + header.format_length) + (8 + header.data_size);
+
+    int result = fseek(wavfile->file, 0, SEEK_SET);
+    if (result != 0)
+    {
+        wavfile->logger(LOGGER_ERROR, "wav_file_rewrite_header: fseek failed, unable to rewrite header: %d, %s\n", errno, strerror(errno));
+        return;
+    }
+
+    size_t written = fwrite(&header, 1, sizeof(header), wavfile->file);
+    if (written != sizeof(header))
+    {
+        wavfile->logger(LOGGER_ERROR, "wav_file_rewrite_header: write failed, unable to rewrite header: %d, %s\n", errno, strerror(errno));
+        return;
+    }
 }
 
 
@@ -180,6 +219,7 @@ static void wav_file_close(output_audio_file *audiofile)
     audio_wav_file *wavfile = (audiofile != NULL) ? (audio_wav_file *)audiofile->data : NULL;
     if (wavfile == NULL || wavfile->file == NULL) return;
 
+    wav_file_rewrite_header(wavfile);
     fclose(wavfile->file);
     wavfile->file = NULL;
 }
@@ -214,7 +254,7 @@ void release_audio_wav_file(output_audio_file *audiofile)
     audio_wav_file *wavfile = (audio_wav_file *)audiofile->data;
     if (wavfile != NULL)
     {
-        if (wavfile->file != NULL) fclose(wavfile->file);
+        if (wavfile->file != NULL) wav_file_close(audiofile);
         free(wavfile);
     }
 
@@ -238,6 +278,7 @@ output_audio_file *create_audio_wav_file(Logger logger, int channels)
     wavfile->bits_per_sample = BITS_PER_SAMPLE;
     wavfile->current_pair_count = 0;
     wavfile->total_samples = 0;
+    wavfile->header_written = 0;
     wavfile->writer = wav_file_write_multichannel;
 
     output_audio_file *audiofile = (output_audio_file *)malloc(sizeof(output_audio_file));
