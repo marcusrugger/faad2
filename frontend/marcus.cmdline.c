@@ -191,8 +191,10 @@ static void set_to_defaults(cmdline_options *options)
     options->infile_seek_position = 44;
     options->object_type = LC;
     options->channels = 16;
+    options->bits_per_channel = 16;
     options->samplerate = 48000;
     options->aac_output_format = FAAD_FMT_16BIT;
+    options->create_audio_output_file = create_audio_wav_file;
 }
 
 void release_cmdline_options(cmdline_options *options)

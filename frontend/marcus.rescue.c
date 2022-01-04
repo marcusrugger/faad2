@@ -193,18 +193,21 @@ static int rmf_open_outfile(
 {
     int result = -1;
 
-    output_audio_file *poutfile = create_audio_wav_file(logger, options->channels);
+    output_audio_file *poutfile = options->create_audio_output_file(logger, options);
     if (poutfile == NULL) return -1;
 
     result = poutfile->open(poutfile, options->output_filename);
     if (SUCCESSFUL(result))
     {
-        poutfile->writeheader(poutfile);
-        result = rmf_initialize_aac_decoder(logger, options, hDecoder, pinfile, poutfile);
+        result = poutfile->writeheader(poutfile);
+
+        if (SUCCESSFUL(result))
+            result = rmf_initialize_aac_decoder(logger, options, hDecoder, pinfile, poutfile);
+
         poutfile->close(poutfile);
     }
 
-    release_audio_wav_file(poutfile);
+    poutfile->release(poutfile);
     return result;
 }
 

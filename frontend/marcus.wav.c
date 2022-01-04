@@ -37,6 +37,12 @@
 #define SAMPLE_FORMAT short
 
 
+const uint32_t HEADER_RIFF_SIZE = 12;
+const uint32_t HEADER_FMT_SIZE = 24;
+const uint32_t HEADER_WAVE_SIZE = 8;
+const uint32_t HEADER_TOTAL_SIZE = (HEADER_RIFF_SIZE + HEADER_FMT_SIZE + HEADER_WAVE_SIZE);
+
+
 typedef struct audio_wav_file_tag audio_wav_file;
 struct audio_wav_file_tag
 {
@@ -46,10 +52,13 @@ struct audio_wav_file_tag
     int sample_rate;
     int bits_per_sample;
     int current_pair_count;
-    int total_samples;
     int header_written;
 
-    SAMPLE_FORMAT buffer[SAMPLES_PER_FRAME][CHANNEL_COUNT];
+    uint32_t total_samples_written;
+    uint32_t max_samples;   /* the maximum number of samples we can write to the file */
+
+    void *buffer;
+    size_t sizeof_buffer;
 
     int (*writer)(audio_wav_file *, unsigned char *, int, int);
 };
@@ -92,8 +101,14 @@ static int wav_file_write(output_audio_file *audiofile, unsigned char *samples, 
         return -1;
     }
 
+    if (wavfile->total_samples_written + sample_count > wavfile->max_samples)
+    {
+        wavfile->logger(LOGGER_ERROR, "wav_file_write: maximum possible file size exceeded.\n");
+        return -1;
+    }
+
     int result = wavfile->writer(wavfile, samples, sample_count, channel_count);
-    wavfile->total_samples += sample_count;
+    wavfile->total_samples_written += sample_count;
     return result;
 }
 
@@ -102,7 +117,7 @@ typedef struct
 {
     /* RIFF chunk */
     int8_t riff[4];
-    int32_t filesize;
+    uint32_t filesize;
     int8_t wave[4];
 
     /* fmt chunk */
@@ -117,7 +132,7 @@ typedef struct
 
     /* data chunk */
     int8_t data[4];
-    int32_t data_size;
+    uint32_t data_size;
 }
 audio_wav_file_header;
 
@@ -129,7 +144,7 @@ static void wav_file_initialize_header(audio_wav_file *wavfile, audio_wav_file_h
     header->riff[2] = 'F';
     header->riff[3] = 'F';
 
-    header->filesize = 0x7FFFFFFF;
+    header->filesize = 0xFFFFFFFF;
 
     header->wave[0] = 'W';
     header->wave[1] = 'A';
@@ -154,7 +169,7 @@ static void wav_file_initialize_header(audio_wav_file *wavfile, audio_wav_file_h
     header->data[2] = 't';
     header->data[3] = 'a';
 
-    header->data_size = 0x7FFFFFFF;
+    header->data_size = 0xFFFFFFFF;
 }
 
 
@@ -190,7 +205,7 @@ static void wav_file_rewrite_header(audio_wav_file *wavfile)
     audio_wav_file_header header;
     wav_file_initialize_header(wavfile, &header);
 
-    header.data_size = wavfile->total_samples * sizeof(SAMPLE_FORMAT);
+    header.data_size = wavfile->total_samples_written * sizeof(SAMPLE_FORMAT);
     header.filesize = 4 + (8 + header.format_length) + (8 + header.data_size);
 
     int result = fseek(wavfile->file, 0, SEEK_SET);
@@ -242,7 +257,7 @@ static int wav_file_open(output_audio_file *audiofile, char *filename)
 }
 
 
-void release_audio_wav_file(output_audio_file *audiofile)
+static void wav_file_release(output_audio_file *audiofile)
 {
     if (audiofile == NULL) return;
 
@@ -250,6 +265,7 @@ void release_audio_wav_file(output_audio_file *audiofile)
     if (wavfile != NULL)
     {
         if (wavfile->file != NULL) wav_file_close(audiofile);
+        if (wavfile->buffer != NULL) free(wavfile->buffer);
         free(wavfile);
     }
 
@@ -257,31 +273,45 @@ void release_audio_wav_file(output_audio_file *audiofile)
 }
 
 
-output_audio_file *create_audio_wav_file(Logger logger, int channels)
+output_audio_file *create_audio_wav_file(Logger logger, cmdline_options *options)
 {
+    /* Instantiate audio_wav_file */
     audio_wav_file *wavfile = (audio_wav_file *)malloc(sizeof(audio_wav_file));
     if (wavfile == NULL)
     {
         logger(LOGGER_ERROR, "create_audio_wav_file: could not instantiate audio_wav_file: %d, %s\n", errno, strerror(errno));
-        return NULL;
+        goto error_wavfile;
     }
 
+    int bytes_per_sample = options->bits_per_channel / 8;
+
     wavfile->logger = logger;
-    wavfile->channels = CHANNEL_COUNT;
+    wavfile->channels = options->channels;
     wavfile->file = NULL;
-    wavfile->sample_rate = 48000;
+    wavfile->sample_rate = options->samplerate;
     wavfile->bits_per_sample = BITS_PER_SAMPLE;
     wavfile->current_pair_count = 0;
-    wavfile->total_samples = 0;
+    wavfile->total_samples_written = 0;
+    wavfile->max_samples = (0xFFFFFFFF - HEADER_TOTAL_SIZE) / bytes_per_sample;
     wavfile->header_written = 0;
     wavfile->writer = wav_file_write_multichannel;
 
+    /* Instantiate samples buffer */
+    wavfile->sizeof_buffer = options->channels * SAMPLES_PER_FRAME * bytes_per_sample;
+    void *buffer = malloc(wavfile->sizeof_buffer);
+    if (buffer == NULL)
+    {
+        logger(LOGGER_ERROR, "create_audio_wav_file: could not instantiate sample buffer: %d, %s\n", errno, strerror(errno));
+        goto error_buffer;
+    }
+    wavfile->buffer = buffer;
+
+    /* Instantiate output_audio_file */
     output_audio_file *audiofile = (output_audio_file *)malloc(sizeof(output_audio_file));
     if (audiofile == NULL)
     {
         logger(LOGGER_ERROR, "create_audio_wav_file: could not instantiate audio_file: %d, %s\n", errno, strerror(errno));
-        free(wavfile);
-        return NULL;
+        goto error_audiofile;
     }
 
     audiofile->data = wavfile;
@@ -289,6 +319,16 @@ output_audio_file *create_audio_wav_file(Logger logger, int channels)
     audiofile->close = wav_file_close;
     audiofile->writeheader = wav_file_write_header;
     audiofile->write = wav_file_write;
+    audiofile->release = wav_file_release;
 
     return audiofile;
+
+error_audiofile:
+    free(buffer);
+
+error_buffer:
+    free(wavfile);
+
+error_wavfile:
+    return NULL;
 }
