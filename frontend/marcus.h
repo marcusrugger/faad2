@@ -52,7 +52,6 @@ struct output_audio_file_tag
     void *data;
     int (*open)(output_audio_file *, char *);
     void (*close)(output_audio_file *);
-    int (*writeheader)(output_audio_file *);
     int (*write)(output_audio_file *, unsigned char *samples, int sample_count, int channel_count);
     void (*release)(output_audio_file *);
 };

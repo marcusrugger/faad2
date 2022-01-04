@@ -44,6 +44,14 @@ const uint32_t HEADER_TOTAL_SIZE = (HEADER_RIFF_SIZE + HEADER_FMT_SIZE + HEADER_
 
 
 typedef struct audio_wav_file_tag audio_wav_file;
+
+
+static inline audio_wav_file * UNWRAP(output_audio_file *audiofile)
+{
+    return (audiofile != NULL) ? (audio_wav_file *)audiofile->data : NULL;
+}
+
+
 struct audio_wav_file_tag
 {
     Logger logger;
@@ -64,74 +72,25 @@ struct audio_wav_file_tag
 };
 
 
-static int wav_file_write_multichannel(audio_wav_file *wavfile, unsigned char *inbuffer, int sample_count, int channel_count)
-{
-    SAMPLE_FORMAT *sample_buffer = (SAMPLE_FORMAT *)inbuffer;
-    SAMPLE_FORMAT *output_buffer = (SAMPLE_FORMAT *)wavfile->buffer + 2 * wavfile->current_pair_count;
-
-    for (int sindex = sample_count / channel_count; sindex > 0; --sindex)
-    {
-        *output_buffer++ = *sample_buffer++;
-        *output_buffer++ = *sample_buffer++;
-        output_buffer += (wavfile->channels - 2);
-    }
-
-    wavfile->current_pair_count++;
-    if (wavfile->current_pair_count < wavfile->channels / 2) return 0;
-
-    wavfile->current_pair_count = 0;
-    int count = wavfile->channels * SAMPLES_PER_FRAME;
-    int written = fwrite(wavfile->buffer, sizeof(SAMPLE_FORMAT), count, wavfile->file);
-    if (count != written)
-    {
-        wavfile->logger(LOGGER_ERROR, "wav_file_write_multichannel_16: error writing wav file: %d, %s\n", errno, strerror(errno));
-        return -1;
-    }
-
-    return 0;
-}
-
-
-static int wav_file_write(output_audio_file *audiofile, unsigned char *samples, int sample_count, int channel_count)
-{
-    audio_wav_file *wavfile = (audiofile != NULL) ? (audio_wav_file *)audiofile->data : NULL;
-    if (wavfile == NULL || wavfile->file == NULL)
-    {
-        wavfile->logger(LOGGER_ERROR, "wav_file_write: can not write samples, wav file is not open.\n");
-        return -1;
-    }
-
-    if (wavfile->total_samples_written + sample_count > wavfile->max_samples)
-    {
-        wavfile->logger(LOGGER_ERROR, "wav_file_write: maximum possible file size exceeded.\n");
-        return -1;
-    }
-
-    int result = wavfile->writer(wavfile, samples, sample_count, channel_count);
-    wavfile->total_samples_written += sample_count;
-    return result;
-}
-
-
 typedef struct
 {
     /* RIFF chunk */
-    int8_t riff[4];
+    uint8_t riff[4];
     uint32_t filesize;
-    int8_t wave[4];
+    uint8_t wave[4];
 
     /* fmt chunk */
-    int8_t fmt[4];
-    int32_t format_length;
-    int16_t format;
-    int16_t channels;
-    int32_t sample_rate;
-    int32_t byte_rate;
-    int16_t block_align;
-    int16_t bits_per_sample;
+    uint8_t fmt[4];
+    uint32_t format_length;
+    uint16_t format;
+    uint16_t channels;
+    uint32_t sample_rate;
+    uint32_t byte_rate;
+    uint16_t block_align;
+    uint16_t bits_per_sample;
 
     /* data chunk */
-    int8_t data[4];
+    uint8_t data[4];
     uint32_t data_size;
 }
 audio_wav_file_header;
@@ -173,9 +132,8 @@ static void wav_file_initialize_header(audio_wav_file *wavfile, audio_wav_file_h
 }
 
 
-static int wav_file_write_header(output_audio_file *audiofile)
+static int wav_file_write_header(audio_wav_file *wavfile)
 {
-    audio_wav_file *wavfile = (audiofile != NULL) ? (audio_wav_file *)audiofile->data : NULL;
     if (wavfile == NULL || wavfile->file == NULL)
     {
         wavfile->logger(LOGGER_ERROR, "wav_file_write_header: can not write header, wav file is not open.\n");
@@ -224,9 +182,64 @@ static void wav_file_rewrite_header(audio_wav_file *wavfile)
 }
 
 
+static int wav_file_write_multichannel(audio_wav_file *wavfile, unsigned char *inbuffer, int sample_count, int channel_count)
+{
+    SAMPLE_FORMAT *sample_buffer = (SAMPLE_FORMAT *)inbuffer;
+    SAMPLE_FORMAT *output_buffer = (SAMPLE_FORMAT *)wavfile->buffer + 2 * wavfile->current_pair_count;
+
+    for (int sindex = sample_count / channel_count; sindex > 0; --sindex)
+    {
+        *output_buffer++ = *sample_buffer++;
+        *output_buffer++ = *sample_buffer++;
+        output_buffer += (wavfile->channels - 2);
+    }
+
+    wavfile->current_pair_count++;
+    if (wavfile->current_pair_count < wavfile->channels / 2) return 0;
+
+    wavfile->current_pair_count = 0;
+    int count = wavfile->channels * SAMPLES_PER_FRAME;
+    int written = fwrite(wavfile->buffer, sizeof(SAMPLE_FORMAT), count, wavfile->file);
+    if (count != written)
+    {
+        wavfile->logger(LOGGER_ERROR, "wav_file_write_multichannel_16: error writing wav file: %d, %s\n", errno, strerror(errno));
+        return -1;
+    }
+
+    return 0;
+}
+
+
+static int wav_file_write(output_audio_file *audiofile, unsigned char *samples, int sample_count, int channel_count)
+{
+    audio_wav_file *wavfile = UNWRAP(audiofile);
+    if (wavfile == NULL || wavfile->file == NULL)
+    {
+        wavfile->logger(LOGGER_ERROR, "wav_file_write: can not write samples, wav file is not open.\n");
+        return -1;
+    }
+
+    if (!wavfile->header_written)
+    {
+        int result = wav_file_write_header(wavfile);
+        if (FAILED(result)) return result;
+    }
+
+    if (wavfile->total_samples_written + sample_count > wavfile->max_samples)
+    {
+        wavfile->logger(LOGGER_ERROR, "wav_file_write: maximum possible file size exceeded.\n");
+        return -1;
+    }
+
+    int result = wavfile->writer(wavfile, samples, sample_count, channel_count);
+    wavfile->total_samples_written += sample_count;
+    return result;
+}
+
+
 static void wav_file_close(output_audio_file *audiofile)
 {
-    audio_wav_file *wavfile = (audiofile != NULL) ? (audio_wav_file *)audiofile->data : NULL;
+    audio_wav_file *wavfile = UNWRAP(audiofile);
     if (wavfile == NULL || wavfile->file == NULL) return;
 
     wav_file_rewrite_header(wavfile);
@@ -237,7 +250,7 @@ static void wav_file_close(output_audio_file *audiofile)
 
 static int wav_file_open(output_audio_file *audiofile, char *filename)
 {
-    audio_wav_file *wavfile = (audiofile != NULL) ? (audio_wav_file *)audiofile->data : NULL;
+    audio_wav_file *wavfile = UNWRAP(audiofile);
     if (wavfile == NULL) return -1;
 
     if (filename == NULL)
@@ -261,7 +274,7 @@ static void wav_file_release(output_audio_file *audiofile)
 {
     if (audiofile == NULL) return;
 
-    audio_wav_file *wavfile = (audio_wav_file *)audiofile->data;
+    audio_wav_file *wavfile = UNWRAP(audiofile);
     if (wavfile != NULL)
     {
         if (wavfile->file != NULL) wav_file_close(audiofile);
@@ -317,7 +330,6 @@ output_audio_file *create_audio_wav_file(Logger logger, cmdline_options *options
     audiofile->data = wavfile;
     audiofile->open = wav_file_open;
     audiofile->close = wav_file_close;
-    audiofile->writeheader = wav_file_write_header;
     audiofile->write = wav_file_write;
     audiofile->release = wav_file_release;
 

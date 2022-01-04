@@ -199,11 +199,7 @@ static int rmf_open_outfile(
     result = poutfile->open(poutfile, options->output_filename);
     if (SUCCESSFUL(result))
     {
-        result = poutfile->writeheader(poutfile);
-
-        if (SUCCESSFUL(result))
-            result = rmf_initialize_aac_decoder(logger, options, hDecoder, pinfile, poutfile);
-
+        result = rmf_initialize_aac_decoder(logger, options, hDecoder, pinfile, poutfile);
         poutfile->close(poutfile);
     }
 
