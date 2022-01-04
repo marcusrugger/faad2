@@ -39,7 +39,7 @@ static void display_cmdline_options(Logger logger, cmdline_options *options)
     logger(LOGGER_INFO, "    object type: %d\n", options->object_type);
     logger(LOGGER_INFO, "       channels: %d\n", options->channels);
     logger(LOGGER_INFO, "    sample rate: %d\n", options->samplerate);
-    logger(LOGGER_INFO, "  output format: %d\n", options->output_format);
+    logger(LOGGER_INFO, "  output format: %d\n", options->aac_output_format);
     logger(LOGGER_INFO, "------------------------------\n");
 }
 
@@ -188,10 +188,11 @@ static void set_to_defaults(cmdline_options *options)
 {
     options->input_filename = NULL;
     options->output_filename = NULL;
+    options->infile_seek_position = 44;
     options->object_type = LC;
     options->channels = 16;
     options->samplerate = 48000;
-    options->output_format = FAAD_FMT_16BIT;
+    options->aac_output_format = FAAD_FMT_16BIT;
 }
 
 void release_cmdline_options(cmdline_options *options)

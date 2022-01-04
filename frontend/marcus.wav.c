@@ -67,19 +67,17 @@ static int wav_file_write_multichannel(audio_wav_file *wavfile, unsigned char *i
         output_buffer += (wavfile->channels - 2);
     }
 
-    if (wavfile->current_pair_count == (wavfile->channels / 2 - 1))
+    wavfile->current_pair_count++;
+    if (wavfile->current_pair_count < wavfile->channels / 2) return 0;
+
+    wavfile->current_pair_count = 0;
+    int count = wavfile->channels * SAMPLES_PER_FRAME;
+    int written = fwrite(wavfile->buffer, sizeof(SAMPLE_FORMAT), count, wavfile->file);
+    if (count != written)
     {
-        int count = wavfile->channels * SAMPLES_PER_FRAME;
-        int written = fwrite(wavfile->buffer, sizeof(SAMPLE_FORMAT), count, wavfile->file);
-        wavfile->current_pair_count = 0;
-        if (count != written)
-        {
-            wavfile->logger(LOGGER_ERROR, "wav_file_write_multichannel_16: error writing wav file: %d, %s\n", errno, strerror(errno));
-            return -1;
-        }
+        wavfile->logger(LOGGER_ERROR, "wav_file_write_multichannel_16: error writing wav file: %d, %s\n", errno, strerror(errno));
+        return -1;
     }
-    else
-        wavfile->current_pair_count++;
 
     return 0;
 }

@@ -153,7 +153,7 @@ static int rmf_decode_aac(
         advance_inbuffer(pinfile, frameinfo.bytesconsumed);
         fill_inbuffer(pinfile);
     }
-    while (TRUE);
+    while (pinfile->bytes_left_in_buffer);
 
     return 0;
 }
@@ -217,7 +217,7 @@ static int rmf_malloc_infile_buffer(
 {
     int result = -1;
 
-    pinfile->buffer_size = FAAD_MIN_STREAMSIZE * MAX_CHANNELS;
+    pinfile->buffer_size = 2 * 16 * 1024;//FAAD_MIN_STREAMSIZE * MAX_CHANNELS;
     pinfile->buffer = (unsigned char*)malloc(pinfile->buffer_size);
     if (pinfile->buffer != NULL)
     {
@@ -234,6 +234,28 @@ static int rmf_malloc_infile_buffer(
 }
 
 
+static int rmf_seek_infile(
+    Logger logger,
+    cmdline_options *options,
+    NeAACDecHandle hDecoder,
+    buffer_infile *pinfile)
+{
+    int result = -1;
+
+    int seek = fseek(pinfile->file, options->infile_seek_position, SEEK_SET);
+    if (seek == 0)
+    {
+        result = rmf_malloc_infile_buffer(logger, options, hDecoder, pinfile);
+    }
+    else
+    {
+        logger(LOGGER_ERROR, "rmf_open_infile: seek to aac segment failed: %d, %s\n", errno, strerror(errno));
+    }
+
+    return result;
+}
+
+
 static int rmf_open_infile(
     Logger logger,
     cmdline_options *options,
@@ -244,15 +266,15 @@ static int rmf_open_infile(
     buffer_infile infileBuffer;
     initialize_buffer_infile(&infileBuffer);
 
-    infileBuffer.file = faad_fopen(options->input_filename, "rb");
+    infileBuffer.file = fopen(options->input_filename, "rb");
     if (infileBuffer.file != NULL)
     {
-        result = rmf_malloc_infile_buffer(logger, options, hDecoder, &infileBuffer);
+        result = rmf_seek_infile(logger, options, hDecoder, &infileBuffer);
         fclose(infileBuffer.file);
     }
     else
     {
-        logger(LOGGER_ERROR, "Could not open infile: %d, %s\n", errno, strerror(errno));
+        logger(LOGGER_ERROR, "rmf_open_infile: could not open infile: %d, %s\n", errno, strerror(errno));
     }
 
     return result;
@@ -263,7 +285,7 @@ static void cmdline_to_decconfig(cmdline_options *options, NeAACDecConfiguration
 {
     config->defObjectType = options->object_type;
     config->defSampleRate = options->samplerate;
-    config->outputFormat = options->output_format;
+    config->outputFormat = options->aac_output_format;
 }
 
 

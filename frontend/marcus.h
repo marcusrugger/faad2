@@ -29,10 +29,11 @@ typedef struct
     char *input_filename;
     char *output_filename;
 
+    int infile_seek_position;
     char object_type;
     int channels;
     long samplerate;
-    char output_format;
+    char aac_output_format;
 }
 cmdline_options;
 
