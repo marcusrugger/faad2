@@ -87,16 +87,14 @@ static int wav_file_write_multichannel(audio_wav_file *wavfile, unsigned char *i
 
 static int wav_file_write(output_audio_file *audiofile, unsigned char *samples, int sample_count, int channel_count)
 {
-    int result = 0;
     audio_wav_file *wavfile = (audiofile != NULL) ? (audio_wav_file *)audiofile->data : NULL;
-    if (wavfile == NULL) return -1;
-    if (wavfile->file == NULL)
+    if (wavfile == NULL || wavfile->file == NULL)
     {
-        wavfile->logger(LOGGER_ERROR, "Can not write, wav file is not open.\n");
+        wavfile->logger(LOGGER_ERROR, "wav_file_write: can not write samples, wav file is not open.\n");
         return -1;
     }
 
-    result = wavfile->writer(wavfile, samples, sample_count, channel_count);
+    int result = wavfile->writer(wavfile, samples, sample_count, channel_count);
     wavfile->total_samples += sample_count;
     return result;
 }
@@ -165,10 +163,9 @@ static void wav_file_initialize_header(audio_wav_file *wavfile, audio_wav_file_h
 static int wav_file_write_header(output_audio_file *audiofile)
 {
     audio_wav_file *wavfile = (audiofile != NULL) ? (audio_wav_file *)audiofile->data : NULL;
-    if (wavfile == NULL) return -1;
-    if (wavfile->file == NULL)
+    if (wavfile == NULL || wavfile->file == NULL)
     {
-        wavfile->logger(LOGGER_ERROR, "Can not write, wav file is not open.\n");
+        wavfile->logger(LOGGER_ERROR, "wav_file_write_header: can not write header, wav file is not open.\n");
         return -1;
     }
 
