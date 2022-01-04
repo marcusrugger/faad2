@@ -34,6 +34,7 @@
 #define CHANNEL_COUNT 16
 #define SAMPLES_PER_FRAME 1024
 #define BITS_PER_SAMPLE 16
+#define SAMPLE_FORMAT short
 
 
 typedef struct audio_wav_file_tag audio_wav_file;
@@ -47,32 +48,34 @@ struct audio_wav_file_tag
     int current_pair_count;
     int total_samples;
 
-    short buffer[SAMPLES_PER_FRAME][CHANNEL_COUNT];
+    SAMPLE_FORMAT buffer[SAMPLES_PER_FRAME][CHANNEL_COUNT];
 
     int (*writer)(audio_wav_file *, unsigned char *, int, int);
 };
 
 
-static int wav_file_write_multichannel_16(audio_wav_file *wavfile, unsigned char *inbuffer, int sample_count, int channel_count)
+static int wav_file_write_multichannel(audio_wav_file *wavfile, unsigned char *inbuffer, int sample_count, int channel_count)
 {
-    short *sample_buffer = (short *)inbuffer;
-    short *output_buffer;
-    int samples_per_channel = sample_count / channel_count;
+    SAMPLE_FORMAT *sample_buffer = (SAMPLE_FORMAT *)inbuffer;
+    SAMPLE_FORMAT *output_buffer = (SAMPLE_FORMAT *)&wavfile->buffer[0][2 * wavfile->current_pair_count];
 
-    output_buffer = (short *)&wavfile->buffer[0][2 * wavfile->current_pair_count];
-    for (int sindex = 0; sindex < samples_per_channel; sindex++)
+    for (int sindex = sample_count / channel_count; sindex > 0; --sindex)
     {
         *output_buffer++ = *sample_buffer++;
         *output_buffer++ = *sample_buffer++;
-        output_buffer += (CHANNEL_COUNT - 2);
+        output_buffer += (wavfile->channels - 2);
     }
 
-    if (wavfile->current_pair_count == (CHANNEL_COUNT / 2 - 1))
+    if (wavfile->current_pair_count == (wavfile->channels / 2 - 1))
     {
-        int count = CHANNEL_COUNT * SAMPLES_PER_FRAME;
+        int count = wavfile->channels * SAMPLES_PER_FRAME;
         int written = fwrite(wavfile->buffer, wavfile->bits_per_sample / 8, count, wavfile->file);
         wavfile->current_pair_count = 0;
-        if (count != written) return -1;
+        if (count != written)
+        {
+            wavfile->logger(LOGGER_ERROR, "wav_file_write_multichannel_16: error writing wav file: %d, %s\n", errno, strerror(errno));
+            return -1;
+        }
     }
     else
         wavfile->current_pair_count++;
@@ -235,7 +238,7 @@ output_audio_file *create_audio_wav_file(Logger logger, int channels)
     wavfile->bits_per_sample = BITS_PER_SAMPLE;
     wavfile->current_pair_count = 0;
     wavfile->total_samples = 0;
-    wavfile->writer = wav_file_write_multichannel_16;
+    wavfile->writer = wav_file_write_multichannel;
 
     output_audio_file *audiofile = (output_audio_file *)malloc(sizeof(output_audio_file));
     if (audiofile == NULL)
