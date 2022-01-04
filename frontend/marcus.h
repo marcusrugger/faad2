@@ -41,13 +41,15 @@ void release_cmdline_options(cmdline_options *options);
 int rescue_media_file(Logger logger, cmdline_options *options);
 
 
-typedef struct
+typedef struct output_audio_file_tag output_audio_file;
+struct output_audio_file_tag
 {
     void *data;
-    int (*open)(void *, char *);
-    void (*close)(void *);
-}
-output_audio_file;
+    int (*open)(output_audio_file *, char *);
+    void (*close)(output_audio_file *);
+    int (*writeheader)(output_audio_file *);
+    int (*write)(output_audio_file *, unsigned char *samples, int sample_count, int channel_count);
+};
 
 void release_audio_wav_file(output_audio_file *wavfile);
 output_audio_file *create_audio_wav_file(Logger logger, int channels);

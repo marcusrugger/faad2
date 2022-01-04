@@ -146,6 +146,8 @@ static int rmf_decode_aac(
         logger(LOGGER_INFO, "Object count: %d; Frame info: channels = %d, bytes consumed = %d\n", ++a, frameinfo.channels, frameinfo.bytesconsumed);
         if (frameinfo.channels == 0) return -1;
 
+        poutfile->write(poutfile, sample_buffer, frameinfo.samples, frameinfo.channels);
+
         advance_inbuffer(pinfile, frameinfo.bytesconsumed);
         fill_inbuffer(pinfile);
     }
@@ -195,6 +197,7 @@ static int rmf_open_outfile(
     result = poutfile->open(poutfile, options->output_filename);
     if (SUCCESSFUL(result))
     {
+        poutfile->writeheader(poutfile);
         result = rmf_initialize_aac_decoder(logger, options, hDecoder, pinfile, poutfile);
         poutfile->close(poutfile);
     }
