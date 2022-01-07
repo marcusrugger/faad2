@@ -188,7 +188,7 @@ static void set_to_defaults(cmdline_options *options)
 {
     options->input_filename = NULL;
     options->output_filename = NULL;
-    options->infile_seek_position = 44;
+    options->infile_seek_position = 0;//44;
     options->object_type = LC;
     options->channels = 16;
     options->bits_per_channel = 16;

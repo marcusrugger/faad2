@@ -68,7 +68,7 @@ struct audio_wav_file_tag
     void *buffer;
     size_t sizeof_buffer;
 
-    int (*writer)(audio_wav_file *, unsigned char *, int, int);
+    int (*writer)(audio_wav_file *, unsigned char *, int);
 };
 
 
@@ -182,16 +182,19 @@ static void wav_file_rewrite_header(audio_wav_file *wavfile)
 }
 
 
-static int wav_file_write_multichannel(audio_wav_file *wavfile, unsigned char *inbuffer, int sample_count, int channel_count)
+static int wav_file_write_multichannel(audio_wav_file *wavfile, unsigned char *inbuffer, int sample_count)
 {
     SAMPLE_FORMAT *sample_buffer = (SAMPLE_FORMAT *)inbuffer;
     SAMPLE_FORMAT *output_buffer = (SAMPLE_FORMAT *)wavfile->buffer + 2 * wavfile->current_pair_count;
 
-    for (int sindex = sample_count / channel_count; sindex > 0; --sindex)
+    SAMPLE_FORMAT *sample_end = sample_buffer + sample_count;
+    int output_step = wavfile->channels - 1;
+
+    while (sample_buffer < sample_end)
     {
         *output_buffer++ = *sample_buffer++;
-        *output_buffer++ = *sample_buffer++;
-        output_buffer += (wavfile->channels - 2);
+        *output_buffer   = *sample_buffer++;
+        output_buffer += output_step;
     }
 
     wavfile->current_pair_count++;
@@ -231,7 +234,7 @@ static int wav_file_write(output_audio_file *audiofile, unsigned char *samples, 
         return -1;
     }
 
-    int result = wavfile->writer(wavfile, samples, sample_count, channel_count);
+    int result = wavfile->writer(wavfile, samples, sample_count);
     wavfile->total_samples_written += sample_count;
     return result;
 }
